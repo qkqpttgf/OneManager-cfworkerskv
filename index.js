@@ -39,7 +39,7 @@ var ConfigEnvs = {
     'default_sbox_drive_id': 0b100,
 
     'diskname'          : 0b111,
-    'domain_path'       : 0b111,
+    //'domain_path'       : 0b111,
     'downloadencrypt'   : 0b110,
     'guestup_path'      : 0b111,
     'domainforproxy'    : 0b111,
@@ -161,9 +161,10 @@ async function main(req) {
 
     if (files['showname'] == 'root'|| SERVER['disktag']=='') return render(path, files);
 
-    SERVER['list_path'] = '';
-  //SERVER['list_path'] = await getListpath(url.host);
+  SERVER['list_path'] = await getListpath(SERVER['disktag']);
   if (SERVER['list_path']=='') SERVER['list_path'] = '/';
+  let path1 = path_format(SERVER['list_path'] + path_format(path));
+  if (path1!='/'&&path1.substr(-1)=='/') path1 = path1.substr(0, path1.length-1);
   //SERVER['is_guestup_path'] = await is_guestup_path(path);
   SERVER['ajax']=0;
   if ('HTTP_X_REQUESTED_WITH' in SERVER) if (SERVER['HTTP_X_REQUESTED_WITH']=='XMLHttpRequest') SERVER['ajax']=1;
@@ -186,9 +187,6 @@ async function main(req) {
     if (SERVER['admin']) {
         let tmp = await adminoperate(path);
         if (tmp['status'] > 0) {
-            path1 = path_format(SERVER['list_path'] + path_format(path));
-            //savecache('path_' . path1, json_decode('{}',true), SERVER['disktag'], 1);
-            if (path1!='/'&&path1.substr(-1)=='/') path1 = path1.substr(0, path1.length-1);
             await savecache('path_' + path1, JSON.parse('{}'), SERVER['disktag'], 0);
             return tmp;
         }
@@ -220,7 +218,7 @@ async function main(req) {
     }*/
 
     disk = await diskObject((await getConfig('Driver', SERVER['disktag'])), SERVER['disktag']);
-    if (await disk.isfine()) files = await disk.list_files(path);
+    if (await disk.isfine()) files = await disk.list_files(path1);
 
     if (JSON.stringify(files)=='{}') return render(path, files);
     if (('type' in files) && (files['type']=='file') && !('preview' in GET)) {
@@ -228,7 +226,7 @@ async function main(req) {
         return output('', 302, { 'Location' : files['url'] });
     }
     if ('type' in files) return render(path, files);
-    else return output(JSON.stringify(files), 404);
+    else return message(JSON.stringify(files), 'Error', 404);
 }
 
 async function diskObject(type, tag) {
@@ -423,12 +421,12 @@ function isHideFile(str) {
     return false;
 }
 
-function get_content(path)
+async function get_content(path)
 {
     let path1 = path_format(SERVER['list_path'] + path_format(path));
     if (path1!='/'&&path1.substr(-1)=='/') path1 = path1.substr(0, path1.length-1);
-    let file = disk.list_files(path1);
-    //var_dump($file);
+    let file = await disk.list_files(path1);
+    //console.log(file);
     return file;
 }
 
@@ -507,6 +505,11 @@ function spurlencode(str, sp) {
     return tmp;
 }
 
+async function getListpath(disktag) {
+    let public_path = await getConfig('public_path', disktag);
+    return spurlencode(public_path, '/');
+}
+
 function message(body, title, status) {
   html = '<title>' + title + '</title>\n\
   <html lang="zh-CN">\n\
@@ -519,6 +522,7 @@ function message(body, title, status) {
 }
 
 function output(body, status, headers) {
+    //if (headers!=null) 
     headers = new Headers(headers);
     if (headers!=null) {
         let Location = headers.get('Location');
@@ -527,6 +531,7 @@ function output(body, status, headers) {
             //if (headers!=null && headers.get('Content-Type')==null) headers.set('Content-Type', '');
         }
     }
+    //headers.set('content-type', 'text/html');
   return new Response(body, {
     status: status,
     headers: headers
@@ -1771,7 +1776,7 @@ async function render(path, files) {
 
   if (('list' in files) && ('index.html' in files['list']) && !SERVER['admin']) {
         //$htmlcontent = fetch_files(spurlencode(path_format(urldecode(path) . '/index.html'), '/'))['content'];
-        let htmlcontent = await get_content(spurlencode(path_format(urldecode(path) + '/index.html'), '/'))['content'];
+        let htmlcontent = (await get_content(spurlencode(path_format(decodeURIComponent(path) + '/index.html'), '/')))['content'];
         return output(htmlcontent['body'], htmlcontent['stat']);
     }
     path = path.replace('%20','%2520');
