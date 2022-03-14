@@ -1,5 +1,5 @@
 
-var THEME = 'https://github.com/qkqpttgf/OneManager-php/raw/master/theme/classic.html';
+var THEME = 'https://github.com/qkqpttgf/OneManager-php/raw/e8f1fd71757edbc895b6d599278c9294a5c51b54/theme/classic.html';
 var OMKV;
 var disk = new Object();
 var GET;
